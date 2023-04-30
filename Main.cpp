@@ -10,10 +10,12 @@
 программе необходимо реализовать математические действия и
 вывести на экран результат
 */
+
 #include <iostream>
-#include <string>
-#include <stack>
 #include <cmath>
+#include <stack>
+#include <string>
+#include <map>
 using namespace std;
 
 // Функция для проверки приоритета операторов
@@ -22,7 +24,7 @@ int priority(char op)
 	if (op == '+' || op == '-') return 1;
 	if (op == '*' || op == '/') return 2;
 	if (op == '^') return 3;
-	return 0;
+	return -1; 
 }
 
 // Функция для вычисления бинарной операции
@@ -49,156 +51,152 @@ double applyFunc(double x, string func)
 }
 
 // Функция для вычисления арифметического выражения
-double evaluate(string expression)
+double evaluate(string tokens)
 {
-	// Стеки для хранения чисел и операторов
+	// Стеки для хранения операндов и операторов
 	stack <double> values;
 	stack <char> ops;
+	stack <string> funcs;
 
-	// Перебираем символы выражения слева направо
-	for (int i = 0; i < expression.length(); i++)
+	// Словарь для хранения унарных функций
+	map <string, bool> functions;
+	functions["sin"] = true;
+	functions["cos"] = true;
+	functions["tg"] = true;
+	functions["ln"] = true;
+	functions["sqrt"] = true;
+
+	// Переменная для хранения текущей функции
+	string curr_func = "";
+
+	for (int i = 0; i < tokens.length(); i++)
 	{
-
 		// Пропускаем пробелы
-		if (expression[i] == ' ') continue;
+		if (tokens[i] == ' ') continue;
 
-		// Если текущий символ - открывающая скобка,
-		// то помещаем его в стек операторов
-		else if (expression[i] == '(')
+		// Если текущий символ - цифра или точка, то считываем число
+		if (isdigit(tokens[i]) || tokens[i] == '.')
 		{
-			ops.push(expression[i]);
-		}
-
-		// Если текущий символ - цифра или точка,
-		// то считываем все последующие цифры и точки
-		// и формируем из них число, которое помещаем в стек чисел
-		else if (isdigit(expression[i]) || expression[i] == '.')
-		{
-			double val = 0;
-			int point = -1; // Позиция десятичной точки в числе
-			while (i < expression.length() &&
-				   (isdigit(expression[i]) || expression[i] == '.'))
+			double val = 0.0;
+			int dot = 0; // Количество знаков после запятой
+			while (i < tokens.length() && (isdigit(tokens[i]) || tokens[i] == '.'))
 			{
-				if (expression[i] == '.')
+				if (tokens[i] == '.')
 				{
-					point = 0; // Нашли десятичную точку
+					dot++;
 				}
 				else
 				{
-					val = (val * 10) + (expression[i] - '0');
-					if (point >= 0) point++; // Увеличиваем количество знаков после точки
+					val = val * 10 + (tokens[i] - '0');
+					if (dot > 0) dot++;
 				}
 				i++;
 			}
-			if (point > 0)
-			{ // Если число дробное, то делим его на 10 в степени point
-				val = val / pow(10, point);
-			}
-			values.push(val); // Помещаем число в стек чисел
-
-			// Так как цикл for увеличит i на 1, то уменьшаем его на 1,
-			// чтобы не пропустить следующий символ
 			i--;
+			// Делим число на 10 в степени количества знаков после запятой
+			val /= pow(10, dot - 1);
+
+			// Если есть текущая функция, то применяем ее к числу и кладем результат в стек
+			if (curr_func != "")
+			{
+				val = applyFunc(val, curr_func);
+				curr_func = "";
+			}
+
+			// Кладем число в стек
+			values.push(val);
 		}
 
-		// Если текущий символ - буква,
-		// то считываем все последующие буквы и формируем из них строку,
-		// которая может быть названием унарной функции или переменной
-		else if (isalpha(expression[i]))
+		// Если текущий символ - буква, то считываем функцию
+		else if (isalpha(tokens[i]))
 		{
 			string func = "";
-			while (i < expression.length() && isalpha(expression[i]))
+			while (i < tokens.length() && isalpha(tokens[i]))
 			{
-				func += expression[i];
+				func += tokens[i];
 				i++;
 			}
-			// Если строка совпадает с одной из унарных функций,
-			// то помещаем ее в стек операторов
-			if (func == "sin" || func == "cos" || func == "tg" ||
-				func == "ln" || func == "sqrt")
+			i--;
+			// Проверяем, что функция существует и кладем ее в стек функций
+			if (functions.count(func) > 0)
 			{
-				ops.push(func[0]); // Помещаем первую букву функции в стек
+				funcs.push(func);
+				curr_func = func;
 			}
-			// Иначе, если строка не совпадает ни с одной из унарных функций,
-			// то считаем ее переменной и выводим сообщение об ошибке
 			else
 			{
-				cout << "Неверное выражение: неизвестная переменная " << func << endl;
-				return 0;
+				cout << "Неверная функция: " << func << endl;
+				return NAN;
 			}
-
-			// Так как цикл for увеличит i на 1, то уменьшаем его на 1,
-			// чтобы не пропустить следующий символ
-			i--;
 		}
 
-		// Если текущий символ - закрывающая скобка,
-		// то вычисляем все операции внутри скобок,
-		// пока не встретим открывающую скобку в стеке операторов
-		else if (expression[i] == ')')
+		// Если текущий символ - открывающая скобка, то кладем ее в стек операторов
+		else if (tokens[i] == '(')
+		{
+			ops.push(tokens[i]);
+		}
+		else if (tokens[i] == ')')
 		{
 			while (!ops.empty() && ops.top() != '(')
 			{
-				// Извлекаем два числа из стека чисел
+				// Извлекаем два операнда из стека
 				double val2 = values.top();
 				values.pop();
 				double val1 = values.top();
 				values.pop();
 
-				// Извлекаем оператор из стека операторов
+				// Извлекаем оператор из стека
 				char op = ops.top();
 				ops.pop();
 
-				// Вычисляем результат и помещаем его в стек чисел
+				// Вычисляем результат и кладем его в стек
 				values.push(applyOp(val1, val2, op));
 			}
-			// Извлекаем открывающую скобку из стека операторов
+			// Удаляем открывающую скобку из стека
 			if (!ops.empty()) ops.pop();
 		}
 
-		// Если текущий символ - оператор,
-		// то вычисляем все предыдущие операции с большим или равным приоритетом,
-		// пока не встретим оператор с меньшим приоритетом или открывающую скобку в стеке операторов
+		// Если текущий символ - оператор, то вычисляем все операции с большим или равным приоритетом
 		else
 		{
-			while (!ops.empty() && priority(ops.top()) >= priority(expression[i]))
+			while (!ops.empty() && priority(ops.top()) >= priority(tokens[i]))
 			{
-				// Извлекаем два числа из стека чисел
+				// Извлекаем два операнда из стека
 				double val2 = values.top();
 				values.pop();
 				double val1 = values.top();
 				values.pop();
 
-				// Извлекаем оператор из стека операторов
+				// Извлекаем оператор из стека
 				char op = ops.top();
 				ops.pop();
 
-				// Вычисляем результат и помещаем его в стек чисел
+				// Вычисляем результат и кладем его в стек
 				values.push(applyOp(val1, val2, op));
 			}
-			// Помещаем текущий оператор в стек операторов
-			ops.push(expression[i]);
+			// Кладем текущий оператор в стек
+			ops.push(tokens[i]);
 		}
 	}
 
-	// Вычисляем все оставшиеся операции в стеке операторов
+	// Вычисляем все оставшиеся операции в стеке
 	while (!ops.empty())
 	{
-		// Извлекаем два числа из стека чисел
+		// Извлекаем два операнда из стека
 		double val2 = values.top();
 		values.pop();
 		double val1 = values.top();
 		values.pop();
 
-		// Извлекаем оператор из стека операторов
+		// Извлекаем оператор из стека
 		char op = ops.top();
 		ops.pop();
 
-		// Вычисляем результат и помещаем его в стек чисел
+		// Вычисляем результат и кладем его в стек
 		values.push(applyOp(val1, val2, op));
 	}
 
-	// Возвращаем верхний элемент стека чисел как результат выражения
+	// Возвращаем верхний элемент стека как результат выражения
 	return values.top();
 }
 
@@ -206,12 +204,13 @@ double evaluate(string expression)
 int main()
 {
 	setlocale(LC_ALL, "RU");
-	while (true)
+	string expression;
+
+	while (1)
 	{
 		cout << "Введите арифметическое выражение: ";
-		string expression;
-		getline(cin, expression); // Считываем строку с клавиатуры до символа «Возврат каретки»
-		cout << "Результат вычисления: ";
-		cout << evaluate(expression) << endl;
+		getline(cin, expression);
+		cout << "Результат: " << evaluate(expression) << endl; // Выводим результат на экран
 	}
+	return 0;
 }
