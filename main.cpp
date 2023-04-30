@@ -1,144 +1,216 @@
-//3.10.–азработка калькул€тора.ѕрограмма должна
-//обеспечивать ввод пользователем с клавиатуры строки символов,
-//заканчивающейс€ символом Ђ¬озврат кареткиї(0x0D в шестнадцатиричной форме),
-//далее осуществл€ть синтаксический разбор полученной строки,
-//выдел€€ из нее такие операции, как УsinФ,
-//УcosФ, УtgФ, УlnФ, УsqrtФ(квадратный корень), У ^Ф(возведение в степень),
-//У *Ф, У / Ф, У + Ф, У - Ф, У(Ф, У)Ф и операнды(числа участвующие в операци€х).
-//ƒалее, в соответствии с полученным выражением,
-//программе необходимо реализовать математические действи€ и
-//вывести на экран результат
-#include <iostream>
-#include <string>
-#include <stack>
-#include <cmath>
-#include <map>
+/*
+3.10.–азработка калькул€тора.ѕрограмма должна
+обеспечивать ввод пользователем с клавиатуры строки символов,
+заканчивающейс€ символом Ђ¬озврат кареткиї(0x0D в шестнадцатиричной форме),
+далее осуществл€ть синтаксический разбор полученной строки,
+выдел€€ из нее такие операции, как УsinФ,
+УcosФ, УtgФ, УlnФ, УsqrtФ(квадратный корень), У ^Ф(возведение в степень),
+У *Ф, У / Ф, У + Ф, У - Ф, У(Ф, У)Ф и операнды(числа участвующие в операци€х).
+ƒалее, в соответствии с полученным выражением,
+программе необходимо реализовать математические действи€ и
+вывести на экран результат
+*/
 
+#include <iostream>
+#include <cmath>
+#include <stack>
+#include <string>
+#include <map>
 using namespace std;
 
-int precedence(char op)
+// ‘ункци€ дл€ проверки приоритета операторов
+int priority(char op)
 {
-	if (op == '+' || op == '-')
-		return 1;
-	if (op == '*' || op == '/')
-		return 2;
-	if (op == '^')
-		return 3;
-	return 0;
+	if (op == '+' || op == '-') return 1;
+	if (op == '*' || op == '/') return 2;
+	if (op == '^') return 3;
+	return -1; 
 }
 
+// ‘ункци€ дл€ вычислени€ бинарной операции
 double applyOp(double a, double b, char op)
 {
 	switch (op)
 	{
-	case '+':
-		return a + b;
-	case '-':
-		return a - b;
-	case '*':
-		return a * b;
-	case '/':
-		return a / b;
-	case '^':
-		return pow(a, b);
+	case '+': return a + b;
+	case '-': return a - b;
+	case '*': return a * b;
+	case '/': return a / b;
+	case '^': return pow(a, b);
 	}
 }
 
+// ‘ункци€ дл€ вычислени€ унарной операции
+double applyFunc(double x, string func)
+{
+	if (func == "sin") return sin(x);
+	if (func == "cos") return cos(x);
+	if (func == "tg") return tan(x);
+	if (func == "ln") return log(x);
+	if (func == "sqrt") return sqrt(x);
+}
+
+// ‘ункци€ дл€ вычислени€ арифметического выражени€
 double evaluate(string tokens)
 {
-	stack<double> values;
-	stack<char> ops;
+	// —теки дл€ хранени€ операндов и операторов
+	stack <double> values;
+	stack <char> ops;
+	stack <string> funcs;
+
+	// —ловарь дл€ хранени€ унарных функций
+	map <string, bool> functions;
+	functions["sin"] = true;
+	functions["cos"] = true;
+	functions["tg"] = true;
+	functions["ln"] = true;
+	functions["sqrt"] = true;
+
+	// ѕеременна€ дл€ хранени€ текущей функции
+	string curr_func = "";
 
 	for (int i = 0; i < tokens.length(); i++)
 	{
-		if (tokens[i] == ' ')
-			continue;
+		// ѕропускаем пробелы
+		if (tokens[i] == ' ') continue;
 
+		// ≈сли текущий символ - цифра или точка, то считываем число
+		if (isdigit(tokens[i]) || tokens[i] == '.')
+		{
+			double val = 0.0;
+			int dot = 0; //  оличество знаков после зап€той
+			while (i < tokens.length() && (isdigit(tokens[i]) || tokens[i] == '.'))
+			{
+				if (tokens[i] == '.')
+				{
+					dot++;
+				}
+				else
+				{
+					val = val * 10 + (tokens[i] - '0');
+					if (dot > 0) dot++;
+				}
+				i++;
+			}
+			i--;
+			// ƒелим число на 10 в степени количества знаков после зап€той
+			val /= pow(10, dot - 1);
+
+			// ≈сли есть текуща€ функци€, то примен€ем ее к числу и кладем результат в стек
+			if (curr_func != "")
+			{
+				val = applyFunc(val, curr_func);
+				curr_func = "";
+			}
+
+			//  ладем число в стек
+			values.push(val);
+		}
+
+		// ≈сли текущий символ - буква, то считываем функцию
+		else if (isalpha(tokens[i]))
+		{
+			string func = "";
+			while (i < tokens.length() && isalpha(tokens[i]))
+			{
+				func += tokens[i];
+				i++;
+			}
+			i--;
+			// ѕровер€ем, что функци€ существует и кладем ее в стек функций
+			if (functions.count(func) > 0)
+			{
+				funcs.push(func);
+				curr_func = func;
+			}
+			else
+			{
+				cout << "Ќеверна€ функци€: " << func << endl;
+				return NAN;
+			}
+		}
+
+		// ≈сли текущий символ - открывающа€ скобка, то кладем ее в стек операторов
 		else if (tokens[i] == '(')
 		{
 			ops.push(tokens[i]);
 		}
-
-		else if (isdigit(tokens[i]))
-		{
-			double val = 0;
-
-			while (i < tokens.length() && isdigit(tokens[i]))
-			{
-				val = (val * 10) + (tokens[i] - '0');
-				i++;
-			}
-
-			values.push(val);
-
-			i--;
-		}
-
 		else if (tokens[i] == ')')
 		{
 			while (!ops.empty() && ops.top() != '(')
 			{
+				// »звлекаем два операнда из стека
 				double val2 = values.top();
 				values.pop();
-
 				double val1 = values.top();
 				values.pop();
 
+				// »звлекаем оператор из стека
 				char op = ops.top();
 				ops.pop();
 
+				// ¬ычисл€ем результат и кладем его в стек
 				values.push(applyOp(val1, val2, op));
 			}
-
-			if (!ops.empty())
-				ops.pop();
+			// ”дал€ем открывающую скобку из стека
+			if (!ops.empty()) ops.pop();
 		}
 
+		// ≈сли текущий символ - оператор, то вычисл€ем все операции с большим или равным приоритетом
 		else
 		{
-			while (!ops.empty() && precedence(ops.top()) >= precedence(tokens[i]))
+			while (!ops.empty() && priority(ops.top()) >= priority(tokens[i]))
 			{
+				// »звлекаем два операнда из стека
 				double val2 = values.top();
 				values.pop();
-
 				double val1 = values.top();
 				values.pop();
 
+				// »звлекаем оператор из стека
 				char op = ops.top();
 				ops.pop();
 
+				// ¬ычисл€ем результат и кладем его в стек
 				values.push(applyOp(val1, val2, op));
 			}
-
+			//  ладем текущий оператор в стек
 			ops.push(tokens[i]);
 		}
 	}
 
+	// ¬ычисл€ем все оставшиес€ операции в стеке
 	while (!ops.empty())
 	{
+		// »звлекаем два операнда из стека
 		double val2 = values.top();
 		values.pop();
-
 		double val1 = values.top();
 		values.pop();
 
+		// »звлекаем оператор из стека
 		char op = ops.top();
 		ops.pop();
 
+		// ¬ычисл€ем результат и кладем его в стек
 		values.push(applyOp(val1, val2, op));
 	}
 
+	// ¬озвращаем верхний элемент стека как результат выражени€
 	return values.top();
 }
 
+// √лавна€ функци€ программы
 int main()
 {
+	setlocale(LC_ALL, "RU");
+	string expression;
+
 	while (1)
 	{
-		setlocale(LC_ALL, "RU");
-		string expression;
-		cout << "¬ведите выражение: ";
+		cout << "¬ведите арифметическое выражение: ";
 		getline(cin, expression);
-		cout << "–езультат: " << evaluate(expression) << endl;
+		cout << "–езультат: " << evaluate(expression) << endl; // ¬ыводим результат на экран
 	}
+	return 0;
 }
