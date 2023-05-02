@@ -16,6 +16,7 @@
 #include <stack>
 #include <string>
 #include <map>
+#define M_PI 3.141592
 using namespace std;
 
 // Функция для проверки приоритета операторов
@@ -24,7 +25,7 @@ int priority(char op)
 	if (op == '+' || op == '-') return 1;
 	if (op == '*' || op == '/') return 2;
 	if (op == '^') return 3;
-	return -1; 
+	return -1;
 }
 
 // Функция для вычисления бинарной операции
@@ -43,9 +44,10 @@ double applyOp(double a, double b, char op)
 // Функция для вычисления унарной операции
 double applyFunc(double x, string func)
 {
-	if (func == "sin") return sin(x);
-	if (func == "cos") return cos(x);
-	if (func == "tg") return tan(x);
+	double radians = x * M_PI / 180;
+	if (func == "sin") return round(sin(radians) * 1000) / 1000;
+	if (func == "cos") return round(cos(radians) * 1000) / 1000;
+	if (func == "tg") return round(tan(radians) * 1000) / 1000;
 	if (func == "ln") return log(x);
 	if (func == "sqrt") return sqrt(x);
 }
@@ -94,7 +96,7 @@ double evaluate(string tokens)
 			}
 			i--;
 			// Делим число на 10 в степени количества знаков после запятой
-			val /= pow(10, dot - 1);
+			val /= pow(10, dot);
 
 			// Если есть текущая функция, то применяем ее к числу и кладем результат в стек
 			if (curr_func != "")
